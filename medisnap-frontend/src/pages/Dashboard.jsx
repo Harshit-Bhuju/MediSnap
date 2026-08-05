@@ -6,14 +6,10 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
-  ShieldCheck,
-  Zap,
   Plus,
   FileText,
-  Pill,
   MessageSquare,
   ChevronRight,
-  ClipboardList,
   Stethoscope,
 } from "lucide-react";
 
@@ -39,16 +35,15 @@ import {
 const QuickAction = ({ icon: Icon, label, onClick, colorClass, bgClass }) => (
   <button
     onClick={onClick}
-    className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group">
+    className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group text-center">
     <div
       className={cn(
         "w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-colors",
         bgClass,
-        "group-hover:bg-opacity-80",
       )}>
       <Icon className={cn("w-6 h-6", colorClass)} />
     </div>
-    <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900">
+    <span className="text-xs font-bold text-gray-700 group-hover:text-gray-900 leading-tight">
       {label}
     </span>
   </button>
@@ -75,7 +70,6 @@ const Dashboard = () => {
 
   // Calculate adherence stats for the chart
   const adherenceData = useMemo(() => {
-    // Mock data for demonstration if no real logs exist
     if (!adherenceLogs || adherenceLogs.length === 0) {
       const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const todayIndex = new Date().getDay();
@@ -85,7 +79,7 @@ const Dashboard = () => {
       ];
       return rotatedDays.map((day) => ({
         name: day,
-        score: Math.floor(Math.random() * (100 - 60 + 1)) + 60, // Random score between 60 and 100
+        score: Math.floor(Math.random() * (100 - 60 + 1)) + 60,
       }));
     }
 
@@ -97,7 +91,7 @@ const Dashboard = () => {
       const dateStr = d.toISOString().slice(0, 10);
       const logs = adherenceLogs.filter((l) => l.date === dateStr);
       const taken = logs.filter((l) => l.taken).length;
-      const total = logs.length || 1; // Avoid division by zero, though 0/1 is 0
+      const total = logs.length || 1;
       const percentage = logs.length > 0 ? (taken / total) * 100 : 0;
       data.push({
         name: d.toLocaleDateString("en-US", {
@@ -129,17 +123,17 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Welcome Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-gray-100">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
             {t(greetingKey, {
               name: user?.name?.split(" ")[0] || "User",
             })}
             <span className="text-primary-600">.</span>
           </h1>
-          <p className="text-gray-500 font-medium mt-2 text-lg">
+          <p className="text-gray-500 font-medium mt-1 text-sm">
             {t("dashboardPage.summary")}
           </p>
         </div>
@@ -147,53 +141,53 @@ const Dashboard = () => {
           <Button
             variant="outline"
             onClick={() => navigate("/profile")}
-            className="hidden sm:flex rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50">
+            className="hidden sm:flex rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 text-xs py-2.5">
             {t("dashboardPage.viewProfile")}
           </Button>
           <Button
-            size="lg"
+            size="sm"
             onClick={() => navigate("/reports")}
-            className="rounded-xl shadow-lg shadow-primary-200/50 hover:shadow-primary-300/50 transition-all">
-            <Plus className="w-5 h-5 mr-2" />
+            className="rounded-xl shadow-sm text-xs py-2.5 px-4">
+            <Plus className="w-4 h-4 mr-1.5" />
             {t("dashboardPage.analyzeNew")}
           </Button>
         </div>
       </div>
 
       {/* Quick Actions Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <QuickAction
           icon={FileText}
           label={t("dashboardPage.uploadReport")}
           onClick={() => navigate("/reports")}
-          bgClass="bg-blue-50"
-          colorClass="text-blue-600"
+          bgClass="bg-primary-50"
+          colorClass="text-primary-600"
         />
         <QuickAction
           icon={Activity}
           label={t("dashboardPage.logSymptoms")}
           onClick={() => navigate("/symptoms")}
-          bgClass="bg-red-50"
-          colorClass="text-red-600"
+          bgClass="bg-primary-50"
+          colorClass="text-primary-600"
         />
         <QuickAction
           icon={MessageSquare}
           label={t("dashboardPage.askAI")}
           onClick={() => navigate("/consultation")}
-          bgClass="bg-violet-50"
-          colorClass="text-violet-600"
+          bgClass="bg-primary-50"
+          colorClass="text-primary-600"
         />
       </div>
 
       {/* Main Grid: Insights & Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2/3) */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-6">
           {/* AI Insight */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary-600" />
                 {t("dashboardPage.latestInsight")}
               </h2>
             </div>
@@ -205,24 +199,24 @@ const Dashboard = () => {
                   ne: t("dashboardPage.insightExample", { lng: "ne" }),
                 },
               ]}
-              className="border-l-4 border-l-amber-400 bg-amber-50/50"
+              className="border border-primary-100 bg-primary-50/30 rounded-2xl p-4"
             />
           </section>
 
           {/* Adherence Chart */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary-600" />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary-600" />
                 {t("dashboardPage.adherenceTitle")}
               </h2>
-              <select className="text-xs font-bold bg-transparent border-none text-gray-500 cursor-pointer focus:ring-0">
+              <select className="text-xs font-semibold bg-transparent border-none text-gray-500 cursor-pointer focus:ring-0">
                 <option>{t("dashboardPage.last7Days")}</option>
                 <option>{t("dashboardPage.last30Days")}</option>
               </select>
             </div>
-            <Card className="shadow-sm border-none bg-white">
-              <CardBody className="p-6 h-80">
+            <Card className="shadow-sm border border-gray-100 bg-white rounded-2xl">
+              <CardBody className="p-5 h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={adherenceData}
@@ -236,12 +230,12 @@ const Dashboard = () => {
                         y2="1">
                         <stop
                           offset="5%"
-                          stopColor="#4f46e5"
+                          stopColor="#2563eb"
                           stopOpacity={0.2}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#4f46e5"
+                          stopColor="#2563eb"
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -266,15 +260,15 @@ const Dashboard = () => {
                     <Tooltip
                       contentStyle={{
                         borderRadius: "12px",
-                        border: "none",
-                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                        border: "1px solid #f3f4f6",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
                       }}
                     />
                     <Area
                       type="monotone"
                       dataKey="score"
-                      stroke="#4f46e5"
-                      strokeWidth={3}
+                      stroke="#2563eb"
+                      strokeWidth={2.5}
                       fillOpacity={1}
                       fill="url(#colorScore)"
                     />
@@ -286,12 +280,12 @@ const Dashboard = () => {
         </div>
 
         {/* Right Column (1/3) */}
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Latest Report Card */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-gray-400" />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" />
                 {t("dashboardPage.recent")}
               </h2>
               <button
@@ -302,17 +296,16 @@ const Dashboard = () => {
             </div>
 
             <Card
-              className="border-none shadow-lg shadow-gray-100 group cursor-pointer overflow-hidden relative"
+              className="border border-gray-100 shadow-sm hover:shadow-card-hover transition-all duration-300 group cursor-pointer rounded-2xl"
               onClick={() =>
                 displayReport.id !== "mock-report"
                   ? navigate(`/results/${displayReport.id}`)
                   : navigate("/reports")
               }>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-primary-50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform duration-500" />
-              <CardBody className="p-6 relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-primary-50 rounded-xl text-primary-600">
-                    <FileText className="w-6 h-6" />
+              <CardBody className="p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="p-2.5 bg-primary-50 rounded-xl text-primary-600">
+                    <FileText className="w-5 h-5" />
                   </div>
                   <Badge
                     variant={
@@ -323,10 +316,10 @@ const Dashboard = () => {
                       : t("dashboardPage.statusAttention")}
                   </Badge>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">
+                <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">
                   {displayReport.type || "Lab Report"}
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-xs text-gray-500 mb-3">
                   {displayReport.lab || "Unknown Lab"} •{" "}
                   {displayReport.date
                     ? new Date(displayReport.date).toLocaleDateString("en-GB", {
@@ -336,31 +329,31 @@ const Dashboard = () => {
                     : "No Date"}
                 </p>
 
-                <div className="flex items-center text-primary-600 font-bold text-sm mt-2 group-hover:translate-x-1 transition-transform">
+                <div className="flex items-center text-primary-600 font-bold text-xs group-hover:translate-x-1 transition-transform">
                   {t("dashboardPage.viewDetails")}
-                  <ChevronRight className="w-4 h-4 ml-1" />
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
                 </div>
               </CardBody>
             </Card>
           </section>
 
           {/* Consult a Specialist */}
-          <Card className="border-none shadow-xl bg-white border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-500">
-            <CardBody className="p-6 sm:p-8">
-              <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                <Stethoscope className="w-6 h-6 text-primary-600" />
+          <Card className="border border-gray-100 shadow-sm hover:shadow-card-hover transition-all duration-300 bg-white rounded-2xl">
+            <CardBody className="p-6">
+              <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center mb-4 text-primary-600">
+                <Stethoscope className="w-5 h-5" />
               </div>
-              <h3 className="text-xl font-black mb-2 text-gray-900">
+              <h3 className="text-base font-bold mb-1.5 text-gray-900">
                 {t("dashboardPage.consultSpecialist")}
               </h3>
-              <p className="text-sm font-bold text-gray-500 leading-relaxed mb-8">
+              <p className="text-xs text-gray-500 leading-relaxed mb-6">
                 {t("dashboardPage.consultDesc")}
               </p>
               <Button
-                className="w-full bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-100 font-black rounded-2xl py-4 flex items-center justify-center gap-2"
+                className="w-full bg-primary-600 text-white hover:bg-primary-700 shadow-sm font-semibold rounded-xl py-3 text-xs flex items-center justify-center gap-2"
                 onClick={() => navigate("/consultants")}>
                 {t("dashboardPage.findDoctor")}
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardBody>
           </Card>

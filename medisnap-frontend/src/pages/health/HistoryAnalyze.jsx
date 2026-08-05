@@ -65,7 +65,7 @@ const HistoryAnalyze = () => {
                                 <div>
                                     <h1 className="text-2xl font-black tracking-tight uppercase">Clinical Intelligence Report</h1>
                                     <p className="text-white/80 text-xs font-black tracking-[0.2em] uppercase mt-1">
-                                        Powered by RapiReport Gemini
+                                        Powered by MediSnap Gemini
                                     </p>
                                 </div>
                             </div>

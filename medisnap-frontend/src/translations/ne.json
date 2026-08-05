@@ -51,17 +51,17 @@
     "title": "स्वास्थ्य निगरानीमा महिनाको ८ घण्टा बचत गर्नुहोस्",
     "subtitle": "अस्पष्ट रिपोर्टहरूलाई व्यावसायिक रूपमा परिवर्तन गर्नुहोस्। नेपालको लागि AI-आधारित मेडिकल जानकारी।",
     "cta": "निःशुल्क संस्करण सुरु गर्नुहोस्",
-    "badge": "🚀 RapiReport v1.0 सुरु भयो",
+    "badge": "MediSnap v1.0 सुरु भयो",
     "noCard": "क्रेडिट कार्ड आवश्यक छैन",
     "trustedLabs": "५०+ प्रयोगशालाहरूले विश्वास गर्छन्",
-    "mockTitle": "RapiReport AI | बिरामी तथ्याङ्क",
+    "mockTitle": "MediSnap AI | बिरामी तथ्याङ्क",
     "hemoglobin": "हिमोग्लोबिन",
     "bloodSugar": "रक्त शर्करा",
     "status": "स्थिति",
     "healthVerified": "स्वास्थ्य प्रमाणित"
   },
   "features": {
-    "title": "RapiReport किन?",
+    "title": "MediSnap किन?",
     "subtitle": "निदान अनुभव पुनर्परि परिभाषित",
     "feature1": {
       "title": "द्विभाषिक AI",
@@ -93,7 +93,7 @@
   },
   "howItWorks": {
     "title": "तपाईको स्वास्थ्य यात्रा ३ चरणमा",
-    "subtitle": "RapiReport ले कसरी काम गर्छ",
+    "subtitle": "MediSnap ले कसरी काम गर्छ",
     "step1": {
       "title": "सुरक्षित अपलोड",
       "desc": "तपाईको ल्याब रिपोर्टहरू PDF वा फोटोको रूपमा सुरक्षित रूपमा अपलोड गर्नुहोस्।"
@@ -133,7 +133,7 @@
     "noAccount": "खाता छैन?",
     "hasAccount": "पहिले नै खाता छ?",
     "createTitle": "आफ्नो खाता बनाउनुहोस्",
-    "createSubtitle": "आज RapiReport मा सुरु गर्नुहोस्।",
+    "createSubtitle": "आज MediSnap मा सुरु गर्नुहोस्।",
     "sso": "एकल साइन-अन",
     "continueGoogle": "Google मार्फत जारी राख्नुहोस्",
     "secureAccess": "सुरक्षित पहुँच",
@@ -326,7 +326,7 @@
     "deleteChat": "यो च्याट मेट्ने हो?",
     "newChat": "नयाँ च्याट",
     "chatHistory": "च्याट इतिहास",
-    "title": "RapiReport AI",
+    "title": "MediSnap AI",
     "online": "अनलाइन स्वास्थ्य सहयोग",
     "thinking": "सोच्दै...",
     "placeholder": "तपाईंको स्वास्थ्य जिज्ञासा लेख्नुहोस्...",
@@ -645,7 +645,7 @@
     "errorSlot": "कृपया मिति र समय स्लट चयन गर्नुहोस्।"
   },
   "footer": {
-    "about": "RapiReport को बारेमा",
+    "about": "MediSnap को बारेमा",
     "quickLinks": "द्रुत लिङ्कहरू",
     "support": "समर्थन र मद्दत",
     "contact": "हामीसँग कुरा गर्नुहोस्",

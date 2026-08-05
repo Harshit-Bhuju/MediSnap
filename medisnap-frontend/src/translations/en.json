@@ -51,17 +51,17 @@
     "title": "Save 8 Hours Monthly on Health Tracking",
     "subtitle": "Convert messy diagnostic data into professional reports. AI-powered medical insights for Nepal.",
     "cta": "Start Free Version",
-    "badge": "🚀 RapiReport v1.0 is Live",
+    "badge": "MediSnap v1.0 is Live",
     "noCard": "No credit card required",
     "trustedLabs": "Trusted by 50+ Labs",
-    "mockTitle": "RapiReport AI | Patient Stats",
+    "mockTitle": "MediSnap AI | Patient Stats",
     "hemoglobin": "HEMOGLOBIN",
     "bloodSugar": "BLOOD SUGAR",
     "status": "STATUS",
     "healthVerified": "Health Verified"
   },
   "features": {
-    "title": "Why RapiReport?",
+    "title": "Why MediSnap?",
     "subtitle": "Redefining Diagnostic Experience",
     "feature1": {
       "title": "Bilingual AI",
@@ -93,7 +93,7 @@
   },
   "howItWorks": {
     "title": "Your Health Journey in 3 Steps",
-    "subtitle": "How RapiReport Works",
+    "subtitle": "How MediSnap Works",
     "step1": {
       "title": "Secure Upload",
       "desc": "Upload your lab reports in PDF or image format safely."
@@ -133,7 +133,7 @@
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
     "createTitle": "Create your account",
-    "createSubtitle": "Get started with RapiReport today.",
+    "createSubtitle": "Get started with MediSnap today.",
     "sso": "Single Sign-On",
     "continueGoogle": "Continue with Google",
     "secureAccess": "Secure Access",
@@ -320,13 +320,13 @@
     "download": "Download PDF"
   },
   "chat": {
-    "namaste": "Namaste! I am RapiReport AI. How can I help you with your health today?",
+    "namaste": "Namaste! I am MediSnap AI. How can I help you with your health today?",
     "error": "I'm sorry, I'm having trouble connecting right now. Please try again later.",
     "clearHistory": "Are you sure you want to clear this chat?",
     "deleteChat": "Delete this chat?",
     "newChat": "New chat",
     "chatHistory": "Chat history",
-    "title": "RapiReport AI",
+    "title": "MediSnap AI",
     "online": "Online Health Support",
     "thinking": "Thinking...",
     "placeholder": "Type your health query...",
@@ -645,7 +645,7 @@
     "errorSlot": "Please select a date and time slot."
   },
   "footer": {
-    "about": "About RapiReport",
+    "about": "About MediSnap",
     "quickLinks": "Quick Links",
     "support": "Support & Help",
     "contact": "Talk to Us",

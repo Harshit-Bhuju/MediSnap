@@ -562,7 +562,7 @@ const PatientHealthPanel = ({ patientId, patientName, onClose, isOpen }) => {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Health Intelligence Report</h1>
-                <p className="text-sm font-bold text-primary-600 uppercase tracking-widest">RapiReport Clinical Analysis</p>
+                <p className="text-sm font-bold text-primary-600 uppercase tracking-widest">MediSnap Clinical Analysis</p>
               </div>
             </div>
             <div className="text-right">
@@ -608,13 +608,13 @@ const PatientHealthPanel = ({ patientId, patientName, onClose, isOpen }) => {
             <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-2xl">
               <ShieldAlert className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
               <p className="text-[11px] font-medium text-gray-500 leading-relaxed">
-                DISCLAIMER: This AI-generated clinical insight is based on the available medical history provided within RapiReport.
+                DISCLAIMER: This AI-generated clinical insight is based on the available medical history provided within MediSnap.
                 It is intended for guidance only and does NOT substitute professional clinical judgment, diagnosis, or treatment.
                 Always consult with a qualified healthcare professional.
               </p>
             </div>
             <p className="text-[10px] font-black text-gray-300 text-center mt-8 uppercase tracking-[0.2em]">
-              RapiReport Digital Health Intelligence • Confidential Patient Record
+              MediSnap Digital Health Intelligence • Confidential Patient Record
             </p>
           </div>
         </div>

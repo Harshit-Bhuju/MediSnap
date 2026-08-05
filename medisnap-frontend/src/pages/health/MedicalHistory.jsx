@@ -616,7 +616,7 @@ const MedicalHistory = () => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Personal Health Report</h1>
-                  <p className="text-sm font-bold text-primary-600 uppercase tracking-widest">RapiReport Clinical Intelligence</p>
+                  <p className="text-sm font-bold text-primary-600 uppercase tracking-widest">MediSnap Clinical Intelligence</p>
                 </div>
               </div>
               <div className="text-right">
@@ -647,12 +647,12 @@ const MedicalHistory = () => {
               <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-2xl">
                 <ShieldAlert className="w-5 h-5 text-primary-600 shrink-0 mt-0.5" />
                 <p className="text-[11px] font-medium text-gray-500 leading-relaxed">
-                  DISCLAIMER: This AI-generated clinical insight is based on your personal health records in RapiReport.
+                  DISCLAIMER: This AI-generated clinical insight is based on your personal health records in MediSnap.
                   It is intended for guidance only and does NOT substitute professional medical advice.
                 </p>
               </div>
               <p className="text-[10px] font-black text-gray-300 text-center mt-8 uppercase tracking-[0.2em]">
-                RapiReport Digital Health • Secure Patient File
+                MediSnap Digital Health • Secure Patient File
               </p>
             </div>
           </div>

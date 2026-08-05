@@ -27,7 +27,7 @@ const CURRENT_CHAT_KEY = "chat_current_id_v3";
 const WELCOME_MSG = {
   role: "bot",
   text: {
-    en: "Namaste! I am RapiReport AI. How can I help you with your health today?",
+    en: "Namaste! I am MediSnap AI. How can I help you with your health today?",
     ne: "नमस्ते! म रापिरिपोर्ट एआई हुँ। तपाईंको स्वास्थ्यको बारेमा आज म कसरी सहयोग गर्न सक्छु?",
   },
   timestamp: new Date().toISOString(),

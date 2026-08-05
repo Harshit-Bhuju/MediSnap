@@ -50,7 +50,7 @@ const DoctorSidebar = ({ isOpen, onClose }) => {
               <div className="relative">
                 <img
                   src={logoIcon}
-                  alt="RapiReport"
+                  alt="MediSnap"
                   className="h-16 w-16 object-contain"
                 />
               </div>
@@ -60,7 +60,7 @@ const DoctorSidebar = ({ isOpen, onClose }) => {
                   Doctor
                 </span>
                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] leading-none mt-1">
-                  RapiReport
+                  MediSnap
                 </span>
               </div>
             </Link>
