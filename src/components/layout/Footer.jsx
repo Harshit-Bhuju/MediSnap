@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Mail, Phone, MapPin } from "lucide-react";
-import logoIcon from "@/assets/logos/rapireport_logo.png";
+import logoIcon from "@/assets/logos/medisnap_logo.png";
 
 const Footer = () => {
   const { t } = useTranslation();

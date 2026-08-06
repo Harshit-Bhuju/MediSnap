@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
-import logoIcon from "@/assets/logos/rapireport_logo.png";
+import logoIcon from "@/assets/logos/medisnap_logo.png";
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { t } = useTranslation();

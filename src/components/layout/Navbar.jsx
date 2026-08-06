@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import Button from "@/components/ui/Button";
-import logoIcon from "@/assets/logos/rapireport_logo.png";
+import logoIcon from "@/assets/logos/medisnap_logo.png";
 
 const Navbar = () => {
   const { t, i18n } = useTranslation();
@@ -65,7 +65,7 @@ const Navbar = () => {
           <img
             src={logoIcon}
             alt="MediSnap"
-            className="h-10 w-10 object-contain"
+            className="h-10 w-10 flex-shrink-0"
           />
           <div className="flex flex-col">
             <span className="text-xl font-black text-gray-900 tracking-tight leading-none">
@@ -112,7 +112,9 @@ const Navbar = () => {
                     <button
                       onClick={() => changeLanguage("en")}
                       className={`${
-                        active ? "bg-primary-50 text-primary-600" : "text-gray-700"
+                        active
+                          ? "bg-primary-50 text-primary-600"
+                          : "text-gray-700"
                       } group flex w-full items-center rounded-lg px-3 py-2 text-xs font-semibold`}>
                       English
                     </button>
@@ -123,7 +125,9 @@ const Navbar = () => {
                     <button
                       onClick={() => changeLanguage("ne")}
                       className={`${
-                        active ? "bg-primary-50 text-primary-600" : "text-gray-700"
+                        active
+                          ? "bg-primary-50 text-primary-600"
+                          : "text-gray-700"
                       } group flex w-full items-center rounded-lg px-3 py-2 text-xs font-semibold`}>
                       नेपाली
                     </button>
@@ -203,19 +207,25 @@ const Navbar = () => {
             ))}
 
             <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-xs font-semibold text-gray-500">Language</span>
+              <span className="text-xs font-semibold text-gray-500">
+                Language
+              </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => changeLanguage("en")}
                   className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                    i18n.language === "en" ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-700"
+                    i18n.language === "en"
+                      ? "bg-primary-600 text-white"
+                      : "bg-gray-100 text-gray-700"
                   }`}>
                   EN
                 </button>
                 <button
                   onClick={() => changeLanguage("ne")}
                   className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                    i18n.language === "ne" ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-700"
+                    i18n.language === "ne"
+                      ? "bg-primary-600 text-white"
+                      : "bg-gray-100 text-gray-700"
                   }`}>
                   NE
                 </button>

@@ -20,7 +20,6 @@ import Button from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import { HealthInsightCard } from "@/components/ui/HealthInsightCard";
 import ChatInterface from "@/components/features/ChatInterface";
 import {
   AreaChart,
@@ -183,25 +182,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2/3) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* AI Insight */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary-600" />
-                {t("dashboardPage.latestInsight")}
-              </h2>
-            </div>
-            <HealthInsightCard
-              type="info"
-              insights={[
-                {
-                  en: t("dashboardPage.insightExample", { lng: "en" }),
-                  ne: t("dashboardPage.insightExample", { lng: "ne" }),
-                },
-              ]}
-              className="border border-primary-100 bg-primary-50/30 rounded-2xl p-4"
-            />
-          </section>
+      
 
           {/* Adherence Chart */}
           <section>

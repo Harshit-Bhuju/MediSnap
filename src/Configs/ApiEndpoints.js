@@ -15,7 +15,7 @@ const getBaseUrl = () => {
 
   if (isLocal) {
     // Return relative path to benefit from Vite proxy
-    return "/api";
+    return "/api";0
   }
 
   // Production

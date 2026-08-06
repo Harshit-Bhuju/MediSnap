@@ -64,6 +64,13 @@ const Family = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatCurrentUserId, setChatCurrentUserId] = useState(null);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({}); // { [link_id]: count }
+  const [bounceMemberId, setBounceMemberId] = useState(null);
+  const chatPanelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const lastTypingSentRef = useRef(0);
+  const lastMessageCountRef = useRef({}); // { [link_id]: last known message count }
   const chatScrollRef = useRef(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isMicOn, setIsMicOn] = useState(true);
@@ -112,7 +119,7 @@ const Family = () => {
 
   const startIncomingRingtone = () => {
     if (incomingAudioRef.current) {
-      incomingAudioRef.current.play().catch(() => { });
+      incomingAudioRef.current.play().catch(() => {});
     }
   };
 
@@ -125,7 +132,7 @@ const Family = () => {
 
   const startOutgoingRingtone = () => {
     if (outgoingAudioRef.current) {
-      outgoingAudioRef.current.play().catch(() => { });
+      outgoingAudioRef.current.play().catch(() => {});
     }
   };
 
@@ -510,7 +517,11 @@ const Family = () => {
         { withCredentials: true },
       );
       if (res.data?.status === "success") {
-        toast.success(t("family.addSuccess", { email: res.data.member?.username || newMemberEmail }));
+        toast.success(
+          t("family.addSuccess", {
+            email: res.data.member?.username || newMemberEmail,
+          }),
+        );
         setNewMemberEmail("");
         setNewMemberRelation("");
         setIsAddModalOpen(false);
@@ -519,8 +530,7 @@ const Family = () => {
         toast.error(res.data?.message || t("family.addError"));
       }
     } catch (err) {
-      const msg =
-        err.response?.data?.message || t("family.addError");
+      const msg = err.response?.data?.message || t("family.addError");
       toast.error(msg);
     } finally {
       setIsLoading(false);
@@ -550,7 +560,9 @@ const Family = () => {
             toast.success(t("family.removeSuccess") || "Member removed.");
             setMembers((prev) => prev.filter((m) => m.link_id !== linkId));
           } else {
-            toast.error(res.data?.message || t("family.removeError") || "Remove failed.");
+            toast.error(
+              res.data?.message || t("family.removeError") || "Remove failed.",
+            );
           }
         } catch (err) {
           toast.error(t("family.removeError") || "Error removing member.");
@@ -565,6 +577,7 @@ const Family = () => {
     setChatMessages([]);
     setChatInput("");
     setChatCurrentUserId(null);
+    setUnreadCounts((prev) => ({ ...prev, [member.link_id]: 0 }));
   };
 
   const fetchChatMessages = useCallback(
@@ -611,6 +624,75 @@ const Family = () => {
       cleanupChatPolling();
     };
   }, [isChatModalOpen, activeMember?.link_id, fetchChatMessages]);
+
+  const notifyTyping = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 2000 || !activeMember?.link_id) return;
+    lastTypingSentRef.current = now;
+    // TODO: wire to your backend, e.g.:
+    // axios.post(API.FAMILY_CHAT_TYPING, { link_id: activeMember.link_id }, { withCredentials: true });
+  }, [activeMember?.link_id]);
+
+  // Poll for the other person's typing status alongside your existing chat poll.
+  // Replace this block with a real fetch to your typing-status endpoint.
+  useEffect(() => {
+    if (!isChatModalOpen || !activeMember?.link_id) return;
+    const poll = setInterval(async () => {
+      // TODO: const res = await axios.get(API.FAMILY_CHAT_TYPING, { params: { link_id: activeMember.link_id }, withCredentials: true });
+      // setOtherTyping(!!res.data?.typing);
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [isChatModalOpen, activeMember?.link_id]);
+
+  useEffect(() => {
+    if (!isChatModalOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (window.innerWidth < 768) return; // mobile is full-screen, skip
+      if (chatPanelRef.current && !chatPanelRef.current.contains(e.target)) {
+        setIsChatModalOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isChatModalOpen]);
+
+  useEffect(() => {
+    const acceptedMembers = members.filter((m) => m.status === "accepted");
+    if (!acceptedMembers.length) return;
+
+    const pollUnread = async () => {
+      for (const m of acceptedMembers) {
+        // Skip the member whose chat is currently open — that's covered by live polling
+        if (isChatModalOpen && activeMember?.link_id === m.link_id) continue;
+        try {
+          const res = await axios.get(API.FAMILY_CHAT, {
+            params: { link_id: m.link_id },
+            withCredentials: true,
+          });
+          if (res.data?.status !== "success") continue;
+          const msgs = res.data.messages || [];
+          const prevCount = lastMessageCountRef.current[m.link_id] ?? msgs.length;
+          if (msgs.length > prevCount) {
+            const diff = msgs.length - prevCount;
+            setUnreadCounts((prev) => ({
+              ...prev,
+              [m.link_id]: (prev[m.link_id] || 0) + diff,
+            }));
+            setBounceMemberId(m.link_id);
+            setTimeout(() => setBounceMemberId(null), 1000);
+          }
+          lastMessageCountRef.current[m.link_id] = msgs.length;
+        } catch (err) {
+          // Silent — background polling is best-effort
+        }
+      }
+    };
+
+    const interval = setInterval(pollUnread, 8000);
+    return () => clearInterval(interval);
+  }, [members, isChatModalOpen, activeMember?.link_id]);
 
   useEffect(() => {
     if (chatScrollRef.current && chatMessages.length) {
@@ -669,7 +751,7 @@ const Family = () => {
       if (res.data?.status !== "success" || !res.data.call) {
         toast.error(
           res.data?.message ||
-          t("family.callFailed", { name: member.username }),
+            t("family.callFailed", { name: member.username }),
         );
         return;
       }
@@ -789,7 +871,10 @@ const Family = () => {
 
   const handleRejectInvite = (linkId) => {
     openConfirm({
-      title: t("confirm.decline") || t("family.confirmRejectTitle") || "Decline invitation",
+      title:
+        t("confirm.decline") ||
+        t("family.confirmRejectTitle") ||
+        "Decline invitation",
       message:
         t("confirm.declineInvite") ||
         t("family.confirmReject") ||
@@ -809,7 +894,11 @@ const Family = () => {
             toast.success(t("family.rejectSuccess") || "Invitation declined");
             fetchMembers();
           } else {
-            toast.error(res.data?.message || t("family.rejectError") || "Failed to decline invitation");
+            toast.error(
+              res.data?.message ||
+                t("family.rejectError") ||
+                "Failed to decline invitation",
+            );
           }
         } catch (err) {
           toast.error(t("family.rejectError") || "Error declining invitation");
@@ -873,8 +962,13 @@ const Family = () => {
             }));
           }
         } catch (err) {
-          const errMsg = err?.response?.data?.message || err?.message || "Network error";
-          console.error("Failed to fetch family member health", m.member_id, err?.response?.data || err?.message);
+          const errMsg =
+            err?.response?.data?.message || err?.message || "Network error";
+          console.error(
+            "Failed to fetch family member health",
+            m.member_id,
+            err?.response?.data || err?.message,
+          );
           setMemberHealthData((prev) => ({
             ...prev,
             [m.member_id]: {
@@ -936,9 +1030,9 @@ const Family = () => {
       setHealthModalMember((prev) =>
         prev
           ? {
-            ...prev,
-            health: memberHealthData[prev.id],
-          }
+              ...prev,
+              health: memberHealthData[prev.id],
+            }
           : prev,
       );
     }
@@ -960,7 +1054,9 @@ const Family = () => {
       }
     } catch (err) {
       console.error("Analysis failed", err);
-      toast.error(t("family.aiConnectError") || "Failed to connect to AI service");
+      toast.error(
+        t("family.aiConnectError") || "Failed to connect to AI service",
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -985,7 +1081,11 @@ const Family = () => {
       relation: m.relation || "Family",
       alerts:
         m.status === "pending"
-          ? [m.is_recipient ? t("family.statusPendingReceived") : t("family.statusPendingSent")]
+          ? [
+              m.is_recipient
+                ? t("family.statusPendingReceived")
+                : t("family.statusPendingSent"),
+            ]
           : [],
       avatar: m.profile_picture || null,
       health: memberHealthData[m.member_id] || null,
@@ -995,7 +1095,23 @@ const Family = () => {
     };
     return card;
   };
+  const getInitials = (name) =>
+    (name || "?")
+      .split(" ")
+      .map((p) => p[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
 
+  const ChatAvatar = ({ name, src }) => (
+    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-black">
+      {src ? (
+        <img src={src} alt={name} className="w-full h-full object-cover" />
+      ) : (
+        getInitials(name)
+      )}
+    </div>
+  );
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1050,12 +1166,20 @@ const Family = () => {
                   <>
                     <Button
                       variant="outline"
-                      className="flex-1 bg-white border-gray-100 hover:border-primary-200 transition-colors rounded-xl"
+                      className="flex-1 bg-white border-gray-100 hover:border-primary-200 transition-colors rounded-xl relative"
                       size="sm"
                       disabled={member.status !== "accepted"}
                       onClick={() => handleChat(member)}>
                       <MessageSquare className="w-4 h-4 mr-2 text-primary-600" />
                       {t("family.chat")}
+                      {unreadCounts[member.link_id] > 0 && (
+                        <motion.span
+                          animate={bounceMemberId === member.link_id ? { scale: [1, 1.4, 1] } : {}}
+                          transition={{ duration: 0.4 }}
+                          className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center">
+                          {unreadCounts[member.link_id] > 9 ? "9+" : unreadCounts[member.link_id]}
+                        </motion.span>
+                      )}
                     </Button>
                     <Button
                       variant="outline"
@@ -1129,8 +1253,12 @@ const Family = () => {
               <option value="Mother">{t("family.relations.mother")}</option>
               <option value="Brother">{t("family.relations.brother")}</option>
               <option value="Sister">{t("family.relations.sister")}</option>
-              <option value="Grandfather">{t("family.relations.grandfather")}</option>
-              <option value="Grandmother">{t("family.relations.grandmother")}</option>
+              <option value="Grandfather">
+                {t("family.relations.grandfather")}
+              </option>
+              <option value="Grandmother">
+                {t("family.relations.grandmother")}
+              </option>
               <option value="Son">{t("family.relations.son")}</option>
               <option value="Daughter">{t("family.relations.daughter")}</option>
               <option value="Other">{t("family.relations.other")}</option>
@@ -1150,114 +1278,184 @@ const Family = () => {
         </form>
       </Modal>
 
-      {/* Chat Modal (direct family chat, not AI) */}
-      {/* Chat Modal (direct family chat, not AI) */}
-      <Modal
-        isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
-        title={
-          activeMember
-            ? t("family.chatWith", {
-              name: activeMember.username || activeMember.email,
-            })
-            : t("family.chat")
-        }
-        size="full">
-        <div className="flex flex-col h-[75vh] max-h-[700px] overflow-hidden">
-          <div
-            ref={chatScrollRef}
-            className="flex-1 border border-gray-100 rounded-[2rem] p-5 mb-4 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-50/50 to-white scrollbar-hide">
-            {chatLoading && !chatMessages.length ? (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                <Loader2 className="w-8 h-8 animate-spin text-primary-400 mb-2" />
-                <p className="text-xs font-bold uppercase tracking-widest">
-                  {t("common.loading")}
-                </p>
+      {/* Chat Panel — full screen on mobile, floating corner card on desktop */}
+      <AnimatePresence>
+        {isChatModalOpen && (
+          <motion.div
+            ref={chatPanelRef}
+            initial={{ opacity: 0, y: 40, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className={cn(
+              "fixed z-[60] flex flex-col bg-white overflow-hidden",
+              "inset-0 rounded-none",
+              "md:inset-auto md:bottom-6 md:right-6 md:w-[380px] md:h-[600px] md:max-h-[85vh] md:rounded-[1.75rem] md:shadow-2xl md:ring-1 md:ring-black/5",
+            )}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-blue-50 bg-white shrink-0">
+              <ChatAvatar
+                name={activeMember?.username || activeMember?.email}
+                src={activeMember?.profile_picture}
+              />
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-black text-gray-900 truncate">
+                  {activeMember?.username || activeMember?.email}
+                </h4>
+                {otherTyping && (
+                  <p className="text-[11px] font-bold text-blue-500">
+                    {t("family.typing") || "typing..."}
+                  </p>
+                )}
               </div>
-            ) : chatMessages.length ? (
-              <div className="space-y-6">
-                {chatMessages.map((m, idx) => {
-                  const isMe =
-                    chatCurrentUserId != null &&
-                    m.from_user_id === chatCurrentUserId;
-                  const time = m.created_at
-                    ? new Date(m.created_at).toLocaleTimeString(undefined, {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                    : "";
-                  return (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.25 }}
-                      key={m.id}
-                      className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`flex flex-col max-w-[80%] ${isMe ? "items-end" : "items-start"}`}>
+              <button
+                onClick={() => setIsChatModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div
+              ref={chatScrollRef}
+              className="flex-1 px-4 py-4 overflow-y-auto overflow-x-hidden scrollbar-hide bg-gradient-to-b from-blue-50/40 to-white">
+              {chatLoading && !chatMessages.length ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-400 mb-2" />
+                  <p className="text-xs font-bold uppercase tracking-widest">
+                    {t("common.loading")}
+                  </p>
+                </div>
+              ) : chatMessages.length ? (
+                <div className="space-y-2">
+                  {chatMessages.map((m, idx) => {
+                    const isMe =
+                      chatCurrentUserId != null &&
+                      m.from_user_id === chatCurrentUserId;
+                    const prev = chatMessages[idx - 1];
+                    const isGroupedWithPrev = prev && prev.from_user_id === m.from_user_id;
+                    const time = m.created_at
+                      ? new Date(m.created_at).toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "";
+
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        key={m.id}
+                        className={cn(
+                          "flex items-end gap-2",
+                          isMe ? "justify-end" : "justify-start",
+                          isGroupedWithPrev ? "mt-0.5" : "mt-3",
+                        )}>
+                        {!isMe && (
+                          <div className="w-8 shrink-0">
+                            {!isGroupedWithPrev && (
+                              <ChatAvatar
+                                name={activeMember?.username || activeMember?.email}
+                                src={activeMember?.profile_picture}
+                              />
+                            )}
+                          </div>
+                        )}
                         <div
                           className={cn(
-                            "px-5 py-3.5 rounded-2xl text-[1.05rem] font-medium leading-relaxed shadow-sm",
-                            isMe
-                              ? "bg-gradient-to-br from-primary-600 to-primary-700 text-white rounded-br-none"
-                              : "bg-white border border-gray-100 text-gray-800 rounded-bl-none",
+                            "flex flex-col max-w-[75%]",
+                            isMe ? "items-end" : "items-start",
                           )}>
-                          {m.message}
+                          <div
+                            className={cn(
+                              "px-4 py-2.5 text-[0.95rem] font-medium leading-relaxed shadow-sm",
+                              isMe
+                                ? "bg-blue-600 text-white rounded-2xl rounded-br-md"
+                                : "bg-white border border-blue-50 text-gray-800 rounded-2xl rounded-bl-md",
+                            )}>
+                            {m.message}
+                          </div>
+                          {time && (
+                            <span className="text-[10px] font-semibold text-gray-400 mt-1 mr-1">
+                              {time}
+                            </span>
+                          )}
                         </div>
-                        {time && (
-                          <span className="text-[10px] font-black text-gray-400 mt-1.5 uppercase tracking-wider">
-                            {time}
-                          </span>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-center px-10">
-                <div className="w-16 h-16 bg-primary-50 rounded-3xl flex items-center justify-center mb-4">
-                  <MessageSquare className="w-8 h-8 text-primary-500 opacity-30" />
+                      </motion.div>
+                    );
+                  })}
+
+                  <AnimatePresence>
+                    {otherTyping && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="flex items-end gap-2 mt-3">
+                        <div className="w-8 shrink-0">
+                          <ChatAvatar
+                            name={activeMember?.username || activeMember?.email}
+                            src={activeMember?.profile_picture}
+                          />
+                        </div>
+                        <div className="bg-white border border-blue-50 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.span
+                              key={i}
+                              className="w-1.5 h-1.5 rounded-full bg-blue-300"
+                              animate={{ y: [0, -4, 0] }}
+                              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <h4 className="text-gray-900 font-black text-lg mb-1">
-                  Start Conversation
-                </h4>
-                <p className="text-gray-500 text-sm font-medium">
-                  {t("family.chatEmpty") ||
-                    "No messages yet. Send a message to start the conversation."}
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3 p-1">
-            <div className="relative flex-1">
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-center px-10">
+                  <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center mb-4">
+                    <MessageSquare className="w-8 h-8 text-blue-400 opacity-50" />
+                  </div>
+                  <h4 className="text-gray-900 font-black text-lg mb-1">Start Conversation</h4>
+                  <p className="text-gray-500 text-sm font-medium">
+                    {t("family.chatEmpty") || "No messages yet. Send a message to start the conversation."}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Input */}
+            <div className="flex items-center gap-2 px-3 pb-3 pt-2 border-t border-blue-50 bg-white shrink-0">
               <input
                 type="text"
                 value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
+                onChange={(e) => {
+                  setChatInput(e.target.value);
+                  notifyTyping();
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSendChatMessage();
                   }
                 }}
-                placeholder={
-                  t("family.chatPlaceholder") || "Type your message..."
-                }
-                className="w-full text-base px-5 py-3.5 rounded-2xl border-2 border-transparent bg-gray-50 focus:bg-white focus:border-primary-100 outline-none transition-all placeholder:text-gray-400 placeholder:font-bold"
+                placeholder={t("family.chatPlaceholder") || "Type your message..."}
+                className="flex-1 text-base px-4 py-3 rounded-full border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-gray-400"
                 disabled={chatSending}
               />
+              <Button
+                className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shrink-0 flex items-center justify-center transition-all active:scale-90 p-0"
+                onClick={handleSendChatMessage}
+                disabled={!chatInput.trim() || chatSending}
+                loading={chatSending}>
+                {!chatSending && <Send className="w-5 h-5" />}
+              </Button>
             </div>
-            <Button
-              className="w-16 h-16 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-200 shrink-0 flex items-center justify-center transition-all active:scale-90"
-              onClick={handleSendChatMessage}
-              disabled={!chatInput.trim() || chatSending}
-              loading={chatSending}>
-              {!chatSending && <Send className="w-7 h-7" />}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Call Modal — shared WebRTC UI */}
       <Modal
@@ -1319,8 +1517,8 @@ const Family = () => {
         title={
           healthModalMember
             ? t("family.healthDetails", {
-              name: healthModalMember.name,
-            }) || `${healthModalMember.name}'s Health`
+                name: healthModalMember.name,
+              }) || `${healthModalMember.name}'s Health`
             : t("family.viewHealthDetails")
         }
         size="lg">
@@ -1334,7 +1532,9 @@ const Family = () => {
           <div className="py-12 flex flex-col items-center justify-center text-gray-500 px-4">
             <p className="text-sm font-bold">Failed to load health data.</p>
             {healthModalMember.health?.errorMessage && (
-              <p className="text-xs text-gray-600 mt-2 text-center max-w-md">{healthModalMember.health.errorMessage}</p>
+              <p className="text-xs text-gray-600 mt-2 text-center max-w-md">
+                {healthModalMember.health.errorMessage}
+              </p>
             )}
             <Button
               size="sm"
@@ -1346,380 +1546,388 @@ const Family = () => {
             </Button>
           </div>
         )}
-        {healthModalMember && healthModalMember.health && !healthModalMember.health.error && (
-          <div className="space-y-6">
-            {/* Auto-refresh notice */}
-            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-2 rounded-xl">
-              <RefreshCw className="w-3 h-3" />
-              Auto-refreshes every 10s • Symptoms, prescriptions & family history update live
-            </div>
+        {healthModalMember &&
+          healthModalMember.health &&
+          !healthModalMember.health.error && (
+            <div className="space-y-6">
+              {/* Auto-refresh notice */}
+              <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-2 rounded-xl">
+                <RefreshCw className="w-3 h-3" />
+                Auto-refreshes every 10s • Symptoms, prescriptions & family
+                history update live
+              </div>
 
-            {/* Header / Profile Summary — full description */}
-            <div className="flex items-center gap-4 bg-primary-50 p-4 rounded-2xl border border-primary-100">
-              <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary-500 shadow-sm shrink-0">
-                {healthModalMember.avatar ||
+              {/* Header / Profile Summary — full description */}
+              <div className="flex items-center gap-4 bg-primary-50 p-4 rounded-2xl border border-primary-100">
+                <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary-500 shadow-sm shrink-0">
+                  {healthModalMember.avatar ||
                   healthModalMember.health.profile?.profilePic ? (
-                  <img
-                    src={
-                      healthModalMember.avatar ||
-                      healthModalMember.health.profile.profilePic
-                    }
-                    alt={healthModalMember.name}
-                    className="w-full h-full rounded-2xl object-cover"
-                  />
-                ) : (
-                  <Users className="w-8 h-8" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-black text-gray-900 leading-tight">
-                  {healthModalMember.name}
-                </h3>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
-                  {healthModalMember.relation}
-                </p>
-                {healthModalMember.health.profile?.email && (
-                  <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                    <Mail className="w-3 h-3 shrink-0" />
-                    {healthModalMember.health.profile.email}
+                    <img
+                      src={
+                        healthModalMember.avatar ||
+                        healthModalMember.health.profile.profilePic
+                      }
+                      alt={healthModalMember.name}
+                      className="w-full h-full rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <Users className="w-8 h-8" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-black text-gray-900 leading-tight">
+                    {healthModalMember.name}
+                  </h3>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
+                    {healthModalMember.relation}
                   </p>
-                )}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {healthModalMember.health.profile?.age && (
-                    <span className="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100">
-                      {healthModalMember.health.profile.age}{" "}
-                      {t("consultantsPage.years")}
-                    </span>
-                  )}
-                  {healthModalMember.health.profile?.dob && (
-                    <span className="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100">
-                      <Calendar className="w-3 h-3 inline mr-0.5" />
-                      DOB:{" "}
-                      {new Date(
-                        healthModalMember.health.profile.dob,
-                      ).toLocaleDateString()}
-                    </span>
-                  )}
-                  {healthModalMember.health.profile?.gender && (
-                    <span className="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100 capitalize">
-                      {healthModalMember.health.profile.gender}
-                    </span>
-                  )}
-                  {healthModalMember.health.profile?.bloodGroup && (
-                    <div className="flex items-center gap-1 text-xs font-bold text-error-600 bg-error-50 px-2 py-1 rounded-lg border border-error-100">
-                      <Droplets className="w-3 h-3" />
-                      {healthModalMember.health.profile.bloodGroup}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* AI Analysis Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-gray-900 font-black">
-                  <Brain className="w-4 h-4 text-indigo-500" />
-                  {t("family.healthIntelligence")}
-                </div>
-                {!historyAnalysis && !isAnalyzing && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleAnalyzeHistory(healthModalMember.id)}
-                    className="h-8 text-[10px] gap-1.5 bg-gradient-to-r from-indigo-600 to-primary-600 shadow-md">
-                    <Sparkles className="w-3 h-3" />
-                    {t("family.aiAnalyzeAction")}
-                  </Button>
-                )}
-              </div>
-
-              {(historyAnalysis || isAnalyzing) && (
-                <div className="border border-indigo-50 bg-indigo-50/30 rounded-2xl overflow-hidden ring-1 ring-indigo-50">
-                  <div className="bg-gradient-to-r from-indigo-600/10 to-primary-600/10 p-3 flex items-center gap-2 border-b border-indigo-50">
-                    <BrainCircuit className="w-4 h-4 text-indigo-600" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700">
-                      {t("family.aiClinicalInsight")}
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    {isAnalyzing ? (
-                      <div className="py-8 flex flex-col items-center justify-center text-center">
-                        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
-                        <p className="text-xs font-bold text-gray-900">
-                          {t("family.aiAnalyzing")}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="prose prose-xs prose-indigo max-w-none text-gray-700 leading-relaxed">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {historyAnalysis}
-                        </ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Medical Profile Section - Conditions only (allergies removed) */}
-            <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-2 mb-3 text-gray-900 font-black">
-                <Heart className="w-4 h-4 text-primary-500" />
-                {t("family.conditions")}
-              </div>
-              {healthModalMember.health.profile?.conditions ? (
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {healthModalMember.health.profile.conditions}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-400 italic">
-                  {t("family.noneListed")}
-                </p>
-              )}
-            </div>
-
-            {/* Parental History (Full width) */}
-            {healthModalMember.health.profile?.parentalHistory &&
-              (healthModalMember.health.profile.parentalHistory.length > 0 ||
-                healthModalMember.health.profile.customParentalHistory) && (
-                <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                  <div className="flex items-center gap-2 mb-3 text-gray-900 font-black">
-                    <Users className="w-4 h-4 text-purple-500" />
-                    {t("family.parentalHistory")}
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {healthModalMember.health.profile.parentalHistory.map(
-                      (h, i) => (
-                        <span
-                          key={i}
-                          className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-bold border border-purple-100">
-                          {h}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                  {healthModalMember.health.profile.customParentalHistory && (
-                    <p className="text-xs text-gray-500 mt-2 border-t border-gray-50 pt-2">
-                      <span className="font-bold">{t("family.other")}:</span>{" "}
-                      {healthModalMember.health.profile.customParentalHistory}
+                  {healthModalMember.health.profile?.email && (
+                    <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                      <Mail className="w-3 h-3 shrink-0" />
+                      {healthModalMember.health.profile.email}
                     </p>
                   )}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {healthModalMember.health.profile?.age && (
+                      <span className="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100">
+                        {healthModalMember.health.profile.age}{" "}
+                        {t("consultantsPage.years")}
+                      </span>
+                    )}
+                    {healthModalMember.health.profile?.dob && (
+                      <span className="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100">
+                        <Calendar className="w-3 h-3 inline mr-0.5" />
+                        DOB:{" "}
+                        {new Date(
+                          healthModalMember.health.profile.dob,
+                        ).toLocaleDateString()}
+                      </span>
+                    )}
+                    {healthModalMember.health.profile?.gender && (
+                      <span className="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100 capitalize">
+                        {healthModalMember.health.profile.gender}
+                      </span>
+                    )}
+                    {healthModalMember.health.profile?.bloodGroup && (
+                      <div className="flex items-center gap-1 text-xs font-bold text-error-600 bg-error-50 px-2 py-1 rounded-lg border border-error-100">
+                        <Droplets className="w-3 h-3" />
+                        {healthModalMember.health.profile.bloodGroup}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-
-            {/* Recent Symptoms */}
-            <div>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2 text-gray-900 font-black">
-                  <Thermometer className="w-4 h-4 text-error-500" />
-                  {t("family.recentSymptoms")}
-                </div>
-                <span className="text-xs font-bold text-gray-400">
-                  Last {healthModalMember.health.symptoms?.length || 0} entries
-                </span>
               </div>
 
-              {healthModalMember.health.symptoms &&
-                healthModalMember.health.symptoms.length > 0 ? (
-                <div className="space-y-3">
-                  {healthModalMember.health.symptoms.map((s) => (
-                    <div
-                      key={s.id}
-                      className="bg-white border border-gray-100 p-3 rounded-xl flex items-start justify-between shadow-sm">
-                      <div>
-                        <p className="text-sm font-bold text-gray-800">
-                          {s.text}
-                        </p>
-                        <div className="flex gap-2 mt-1">
-                          <span
-                            className={cn(
-                              "text-[10px] uppercase font-black px-1.5 py-0.5 rounded border",
-                              s.severity === "severe"
-                                ? "bg-error-50 text-error-600 border-error-100"
-                                : s.severity === "moderate"
-                                  ? "bg-warning-50 text-warning-600 border-warning-100"
-                                  : "bg-success-50 text-success-600 border-success-100",
-                            )}>
-                            {t(`common.severities.${s.severity}`)}
-                          </span>
-                          {s.vitals && s.vitals.temp && (
-                            <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
-                              <Thermometer className="w-3 h-3" />
-                              {s.vitals.temp}°C
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap bg-gray-50 px-2 py-1 rounded-lg">
-                        {new Date(s.date).toLocaleDateString()}
+              {/* AI Analysis Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-900 font-black">
+                    <Brain className="w-4 h-4 text-indigo-500" />
+                    {t("family.healthIntelligence")}
+                  </div>
+                  {!historyAnalysis && !isAnalyzing && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleAnalyzeHistory(healthModalMember.id)}
+                      className="h-8 text-[10px] gap-1.5 bg-gradient-to-r from-indigo-600 to-primary-600 shadow-md">
+                      <Sparkles className="w-3 h-3" />
+                      {t("family.aiAnalyzeAction")}
+                    </Button>
+                  )}
+                </div>
+
+                {(historyAnalysis || isAnalyzing) && (
+                  <div className="border border-indigo-50 bg-indigo-50/30 rounded-2xl overflow-hidden ring-1 ring-indigo-50">
+                    <div className="bg-gradient-to-r from-indigo-600/10 to-primary-600/10 p-3 flex items-center gap-2 border-b border-indigo-50">
+                      <BrainCircuit className="w-4 h-4 text-indigo-600" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                        {t("family.aiClinicalInsight")}
                       </span>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <Thermometer className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400 font-medium">
-                    {t("family.noSymptoms")}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Recent Reports */}
-            <div>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2 text-gray-900 font-black">
-                  <FileText className="w-4 h-4 text-blue-500" />
-                  {t("family.recentReports")}
-                </div>
-                <span className="text-xs font-bold text-gray-400">
-                  Last {healthModalMember.health.reports?.length || 0} entries
-                </span>
-              </div>
-
-              {healthModalMember.health.reports &&
-                healthModalMember.health.reports.length > 0 ? (
-                <div className="space-y-3">
-                  {healthModalMember.health.reports.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setSelectedReport(r)}
-                      className="w-full text-left bg-white border border-gray-100 p-3 rounded-xl shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="text-sm font-bold text-gray-800">
-                            {r.lab}
-                          </h4>
-                          <p className="text-xs text-gray-500 font-medium mt-0.5 uppercase tracking-wide">
-                            {r.type}
+                    <div className="p-4">
+                      {isAnalyzing ? (
+                        <div className="py-8 flex flex-col items-center justify-center text-center">
+                          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
+                          <p className="text-xs font-bold text-gray-900">
+                            {t("family.aiAnalyzing")}
                           </p>
                         </div>
-                        <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg whitespace-nowrap">
-                          {new Date(r.date).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      {/* AI Summary Preview */}
-                      {r.summary && (
-                        <div className="bg-primary-50/50 p-2 rounded-lg border border-primary-100/50 mb-2">
-                          <p className="text-xs text-gray-600 line-clamp-2">
-                            {r.summary}
-                          </p>
+                      ) : (
+                        <div className="prose prose-xs prose-indigo max-w-none text-gray-700 leading-relaxed">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {historyAnalysis}
+                          </ReactMarkdown>
                         </div>
                       )}
-
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-md",
-                            r.status === "Critical"
-                              ? "bg-error-100 text-error-700"
-                              : r.status === "Abnormal"
-                                ? "bg-warning-100 text-warning-700"
-                                : "bg-success-100 text-success-700",
-                          )}>
-                          {r.status || "Normal"}
-                        </span>
-                        <span className="text-[10px] font-medium text-gray-400">
-                          {r.testCount} tests • Click to view full report
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <FileText className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400 font-medium">
-                    {t("family.noReports")}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Past Prescriptions */}
-            <div>
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2 text-gray-900 font-black">
-                  <ShieldAlert className="w-4 h-4 text-indigo-500" />
-                  {t("family.prescriptions") || "Past Prescriptions"}
-                </div>
-                <span className="text-xs font-bold text-gray-400">
-                  Last {healthModalMember.health.prescriptions?.length || 0}{" "}
-                  entries
-                </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {healthModalMember.health.prescriptions &&
-                healthModalMember.health.prescriptions.length > 0 ? (
-                <div className="space-y-3">
-                  {healthModalMember.health.prescriptions.map((rx) => (
-                    <button
-                      key={rx.id}
-                      type="button"
-                      onClick={() => setSelectedPrescription(rx)}
-                      className="w-full text-left bg-white border border-gray-100 p-3 rounded-xl shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer">
-                      <div className="flex gap-3 justify-between items-start mb-2">
-                        {rx.imagePath ? (
-                          <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden border border-gray-200">
-                            <img
-                              src={API.PRESCRIPTION_IMAGE(rx.imagePath)}
-                              alt="Prescription"
-                              className="w-full h-full object-cover"
-                              crossOrigin="use-credentials"
-                            />
-                          </div>
-                        ) : (
-                          <div className="shrink-0 w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center">
-                            <ShieldAlert className="w-6 h-6 text-gray-400" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-bold text-gray-800 line-clamp-1">
-                            {rx.meds?.map((m) => m.name).join(", ") ||
-                              "No meds listed"}
-                          </h4>
-                          <p className="text-xs text-gray-500 font-medium mt-0.5 line-clamp-2">
-                            {rx.note || rx.rawText || "No additional notes"}
+              {/* Medical Profile Section - Conditions only (allergies removed) */}
+              <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-2 mb-3 text-gray-900 font-black">
+                  <Heart className="w-4 h-4 text-primary-500" />
+                  {t("family.conditions")}
+                </div>
+                {healthModalMember.health.profile?.conditions ? (
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    {healthModalMember.health.profile.conditions}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">
+                    {t("family.noneListed")}
+                  </p>
+                )}
+              </div>
+
+              {/* Parental History (Full width) */}
+              {healthModalMember.health.profile?.parentalHistory &&
+                (healthModalMember.health.profile.parentalHistory.length > 0 ||
+                  healthModalMember.health.profile.customParentalHistory) && (
+                  <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
+                    <div className="flex items-center gap-2 mb-3 text-gray-900 font-black">
+                      <Users className="w-4 h-4 text-purple-500" />
+                      {t("family.parentalHistory")}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {healthModalMember.health.profile.parentalHistory.map(
+                        (h, i) => (
+                          <span
+                            key={i}
+                            className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-bold border border-purple-100">
+                            {h}
+                          </span>
+                        ),
+                      )}
+                    </div>
+                    {healthModalMember.health.profile.customParentalHistory && (
+                      <p className="text-xs text-gray-500 mt-2 border-t border-gray-50 pt-2">
+                        <span className="font-bold">{t("family.other")}:</span>{" "}
+                        {healthModalMember.health.profile.customParentalHistory}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+              {/* Recent Symptoms */}
+              <div>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2 text-gray-900 font-black">
+                    <Thermometer className="w-4 h-4 text-error-500" />
+                    {t("family.recentSymptoms")}
+                  </div>
+                  <span className="text-xs font-bold text-gray-400">
+                    Last {healthModalMember.health.symptoms?.length || 0}{" "}
+                    entries
+                  </span>
+                </div>
+
+                {healthModalMember.health.symptoms &&
+                healthModalMember.health.symptoms.length > 0 ? (
+                  <div className="space-y-3">
+                    {healthModalMember.health.symptoms.map((s) => (
+                      <div
+                        key={s.id}
+                        className="bg-white border border-gray-100 p-3 rounded-xl flex items-start justify-between shadow-sm">
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">
+                            {s.text}
                           </p>
+                          <div className="flex gap-2 mt-1">
+                            <span
+                              className={cn(
+                                "text-[10px] uppercase font-black px-1.5 py-0.5 rounded border",
+                                s.severity === "severe"
+                                  ? "bg-error-50 text-error-600 border-error-100"
+                                  : s.severity === "moderate"
+                                    ? "bg-warning-50 text-warning-600 border-warning-100"
+                                    : "bg-success-50 text-success-600 border-success-100",
+                              )}>
+                              {t(`common.severities.${s.severity}`)}
+                            </span>
+                            {s.vitals && s.vitals.temp && (
+                              <span className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+                                <Thermometer className="w-3 h-3" />
+                                {s.vitals.temp}°C
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg whitespace-nowrap shrink-0">
-                          {new Date(rx.createdAt).toLocaleDateString()}
+                        <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap bg-gray-50 px-2 py-1 rounded-lg">
+                          {new Date(s.date).toLocaleDateString()}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {rx.meds?.map((m, idx) => (
-                          <span
-                            key={idx}
-                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100">
-                            {m.name} {m.dose && `(${m.dose})`}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                    <Thermometer className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400 font-medium">
+                      {t("family.noSymptoms")}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Reports */}
+              <div>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2 text-gray-900 font-black">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    {t("family.recentReports")}
+                  </div>
+                  <span className="text-xs font-bold text-gray-400">
+                    Last {healthModalMember.health.reports?.length || 0} entries
+                  </span>
+                </div>
+
+                {healthModalMember.health.reports &&
+                healthModalMember.health.reports.length > 0 ? (
+                  <div className="space-y-3">
+                    {healthModalMember.health.reports.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedReport(r)}
+                        className="w-full text-left bg-white border border-gray-100 p-3 rounded-xl shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="text-sm font-bold text-gray-800">
+                              {r.lab}
+                            </h4>
+                            <p className="text-xs text-gray-500 font-medium mt-0.5 uppercase tracking-wide">
+                              {r.type}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg whitespace-nowrap">
+                            {new Date(r.date).toLocaleDateString()}
                           </span>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-primary-600 font-bold mt-2">Click to view full prescription & image</p>
-                    </button>
-                  ))}
+                        </div>
+
+                        {/* AI Summary Preview */}
+                        {r.summary && (
+                          <div className="bg-primary-50/50 p-2 rounded-lg border border-primary-100/50 mb-2">
+                            <p className="text-xs text-gray-600 line-clamp-2">
+                              {r.summary}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "text-[10px] font-bold px-2 py-0.5 rounded-md",
+                              r.status === "Critical"
+                                ? "bg-error-100 text-error-700"
+                                : r.status === "Abnormal"
+                                  ? "bg-warning-100 text-warning-700"
+                                  : "bg-success-100 text-success-700",
+                            )}>
+                            {r.status || "Normal"}
+                          </span>
+                          <span className="text-[10px] font-medium text-gray-400">
+                            {r.testCount} tests • Click to view full report
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                    <FileText className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400 font-medium">
+                      {t("family.noReports")}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Past Prescriptions */}
+              <div>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2 text-gray-900 font-black">
+                    <ShieldAlert className="w-4 h-4 text-indigo-500" />
+                    {t("family.prescriptions") || "Past Prescriptions"}
+                  </div>
+                  <span className="text-xs font-bold text-gray-400">
+                    Last {healthModalMember.health.prescriptions?.length || 0}{" "}
+                    entries
+                  </span>
                 </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <ShieldAlert className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400 font-medium">
-                    {t("family.noPrescriptions") || "No prescriptions found"}
-                  </p>
-                </div>
-              )}
+
+                {healthModalMember.health.prescriptions &&
+                healthModalMember.health.prescriptions.length > 0 ? (
+                  <div className="space-y-3">
+                    {healthModalMember.health.prescriptions.map((rx) => (
+                      <button
+                        key={rx.id}
+                        type="button"
+                        onClick={() => setSelectedPrescription(rx)}
+                        className="w-full text-left bg-white border border-gray-100 p-3 rounded-xl shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer">
+                        <div className="flex gap-3 justify-between items-start mb-2">
+                          {rx.imagePath ? (
+                            <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden border border-gray-200">
+                              <img
+                                src={API.PRESCRIPTION_IMAGE(rx.imagePath)}
+                                alt="Prescription"
+                                className="w-full h-full object-cover"
+                                crossOrigin="use-credentials"
+                              />
+                            </div>
+                          ) : (
+                            <div className="shrink-0 w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center">
+                              <ShieldAlert className="w-6 h-6 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-bold text-gray-800 line-clamp-1">
+                              {rx.meds?.map((m) => m.name).join(", ") ||
+                                "No meds listed"}
+                            </h4>
+                            <p className="text-xs text-gray-500 font-medium mt-0.5 line-clamp-2">
+                              {rx.note || rx.rawText || "No additional notes"}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-lg whitespace-nowrap shrink-0">
+                            {new Date(rx.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {rx.meds?.map((m, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100">
+                              {m.name} {m.dose && `(${m.dose})`}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-primary-600 font-bold mt-2">
+                          Click to view full prescription & image
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                    <ShieldAlert className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400 font-medium">
+                      {t("family.noPrescriptions") || "No prescriptions found"}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </Modal>
 
       {/* Report Detail Modal - full report on click */}
       <Modal
         isOpen={!!selectedReport}
         onClose={() => setSelectedReport(null)}
-        title={selectedReport ? `${selectedReport.lab} - ${selectedReport.type}` : ""}
+        title={
+          selectedReport ? `${selectedReport.lab} - ${selectedReport.type}` : ""
+        }
         size="lg">
         {selectedReport && (
           <div className="space-y-4">
@@ -1757,23 +1965,33 @@ const Family = () => {
 
             {selectedReport.summary && (
               <div>
-                <h4 className="text-sm font-bold text-gray-800 mb-2">AI Summary</h4>
-                <p className="text-sm text-gray-700 leading-relaxed">{selectedReport.summary}</p>
+                <h4 className="text-sm font-bold text-gray-800 mb-2">
+                  AI Summary
+                </h4>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {selectedReport.summary}
+                </p>
               </div>
             )}
 
             {selectedReport.rawText && (
               <div>
-                <h4 className="text-sm font-bold text-gray-800 mb-2">Full Report</h4>
+                <h4 className="text-sm font-bold text-gray-800 mb-2">
+                  Full Report
+                </h4>
                 <pre className="text-xs text-gray-700 bg-gray-50 p-4 rounded-xl overflow-auto max-h-64 whitespace-pre-wrap font-sans">
                   {selectedReport.rawText}
                 </pre>
               </div>
             )}
 
-            {!selectedReport.summary && !selectedReport.rawText && !selectedReport.imagePath && (
-              <p className="text-sm text-gray-500 italic">No additional details available.</p>
-            )}
+            {!selectedReport.summary &&
+              !selectedReport.rawText &&
+              !selectedReport.imagePath && (
+                <p className="text-sm text-gray-500 italic">
+                  No additional details available.
+                </p>
+              )}
           </div>
         )}
       </Modal>
@@ -1808,7 +2026,9 @@ const Family = () => {
             )}
 
             <div>
-              <h4 className="text-sm font-bold text-gray-800 mb-2">Medicines</h4>
+              <h4 className="text-sm font-bold text-gray-800 mb-2">
+                Medicines
+              </h4>
               <div className="flex flex-wrap gap-2">
                 {selectedPrescription.meds?.map((m, idx) => (
                   <span
@@ -1819,8 +2039,11 @@ const Family = () => {
                     {m.duration && ` - ${m.duration}`}
                   </span>
                 ))}
-                {(!selectedPrescription.meds || selectedPrescription.meds.length === 0) && (
-                  <span className="text-sm text-gray-500">No medicines listed</span>
+                {(!selectedPrescription.meds ||
+                  selectedPrescription.meds.length === 0) && (
+                  <span className="text-sm text-gray-500">
+                    No medicines listed
+                  </span>
                 )}
               </div>
             </div>

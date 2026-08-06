@@ -78,7 +78,7 @@ export const HealthInsightCard = ({ insights, type = "info" }) => {
           <div className="space-y-4">
             {insights.map((insight, idx) => (
               <div key={idx} className="space-y-1">
-                <p className="text-sm font-bold leading-relaxed">
+                <p className="text-sm font-bold ">
                   <Typewriter
                     text={currentLang === "ne" ? insight.ne : insight.en}
                   />

@@ -17,7 +17,6 @@ import {
   TrendingUp,
   CheckCircle2,
 } from "lucide-react";
-import logoIcon from "@/assets/logos/rapireport_logo.png";
 
 const Auth = () => {
   const { t, i18n } = useTranslation();
@@ -87,16 +86,7 @@ const Auth = () => {
           {/* Part 1: Left Branding Panel */}
           <div className="p-10 sm:p-12 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-gray-100 bg-white">
             <div>
-              <div className="flex items-center gap-3 mb-8">
-                <img
-                  src={logoIcon}
-                  alt="MediSnap"
-                  className="h-10 w-auto object-contain"
-                />
-                <span className="text-2xl font-black text-gray-900 tracking-tight">
-                  MediSnap
-                </span>
-              </div>
+
 
               <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gray-100 text-gray-700 text-sm font-semibold mb-5">
                 <Sparkles className="w-4 h-4 text-gray-500" />
